@@ -1,0 +1,21 @@
+node{
+    def mavenHome = tool name:'maven3.9.3'
+    properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), pipelineTriggers([pollSCM('* * * * *')])])
+    stage('CheckoutCode'){
+        git branch: 'development', credentialsId: 'ecf12612-5dc9-4e87-a706-7f20c6b54e84', url: 'https://github.com/kowshiku/maven-web-application.git'
+    }
+    stage('builds'){
+        sh "${mavenHome}/bin/mvn clean package"
+    }
+    stage('ExcuteSonarQubeReports'){
+    sh  "${mavenHome}/bin/mvn clean sonar:sonar"
+    }
+    stage('UploadArtifactIntoNexus'){
+    sh "${mavenHome}/bin/mvn clean deploy"
+    }
+    stage('DeployApplicationsIntoTomcatServer'){
+    sshagent(['9612e689-6b3f-4843-ad9a-5894bbd5073c']) {
+    sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@172.31.3.219:/opt/apache-tomcat-9.0.76/webapps/"
+    }
+    }
+}
